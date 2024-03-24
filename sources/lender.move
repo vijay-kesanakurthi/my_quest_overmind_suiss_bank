@@ -93,7 +93,6 @@ module quest_overmind::lending {
     // Dependencies
     //==============================================================================================
     use sui::math;
-    use std::vector;
     use sui::transfer;
     use quest_overmind::dummy_oracle;
     use sui::object::{Self, UID};

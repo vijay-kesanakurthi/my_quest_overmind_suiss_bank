@@ -10,15 +10,11 @@ module quest_overmind::lending_tests {
 
     use quest_overmind::lending::{Self, ProtocolState, AdminCap, Pool};
 
-    use sui::math;
     use std::vector;
-    use sui::transfer;
     use quest_overmind::dummy_oracle;
-    use sui::object::{Self, UID};
-    use sui::table::{Self, Table};
-    use sui::tx_context::{Self, TxContext};
-    use sui::coin::{Self, Coin};
-    use sui::balance::{Self, Balance};
+    use sui::table;
+    use sui::coin;
+    use sui::balance;
 
     //==============================================================================================
     // Tests - DO NOT MODIFY
@@ -222,7 +218,6 @@ module quest_overmind::lending_tests {
         test_scenario::next_tx(scenario, user);
 
         let expected_users = 1;
-        let expected_pools = 1;
         {
             let state = test_scenario::take_shared<ProtocolState>(scenario);
             let user_met = table::borrow(lending::get_users(&state), user);
@@ -296,7 +291,6 @@ module quest_overmind::lending_tests {
         test_scenario::next_tx(scenario, user);
 
         let expected_users = 1;
-        let expected_pools = 1;
         {
             let state = test_scenario::take_shared<ProtocolState>(scenario);
             let user_met = table::borrow(lending::get_users(&state), user);
@@ -380,7 +374,6 @@ module quest_overmind::lending_tests {
         test_scenario::next_tx(scenario, user);
 
         let expected_users = 1;
-        let expected_pools = 2;
         {
             let state = test_scenario::take_shared<ProtocolState>(scenario);
             let user_met = table::borrow(lending::get_users(&state), user);
@@ -470,7 +463,6 @@ module quest_overmind::lending_tests {
         test_scenario::next_tx(scenario, user1);
 
         let expected_users = 2;
-        let expected_pools = 1;
         {
             let state = test_scenario::take_shared<ProtocolState>(scenario);
             let user_met1 = table::borrow(lending::get_users(&state), user1);
@@ -556,7 +548,6 @@ module quest_overmind::lending_tests {
         test_scenario::next_tx(scenario, user);
 
         let expected_users = 1;
-        let expected_pools = 1;
         {
             let state = test_scenario::take_shared<ProtocolState>(scenario);
             let user_met = table::borrow(lending::get_users(&state), user);
@@ -644,7 +635,6 @@ module quest_overmind::lending_tests {
         test_scenario::next_tx(scenario, user);
 
         let expected_users = 1;
-        let expected_pools = 1;
         {
             let state = test_scenario::take_shared<ProtocolState>(scenario);
             let user_met = table::borrow(lending::get_users(&state), user);
@@ -732,7 +722,6 @@ module quest_overmind::lending_tests {
         test_scenario::next_tx(scenario, user);
 
         let expected_users = 1;
-        let expected_pools = 1;
         {
             let state = test_scenario::take_shared<ProtocolState>(scenario);
             let user_met = table::borrow(lending::get_users(&state), user);
@@ -820,7 +809,6 @@ module quest_overmind::lending_tests {
         test_scenario::next_tx(scenario, user);
 
         let expected_users = 1;
-        let expected_pools = 1;
         {
             let state = test_scenario::take_shared<ProtocolState>(scenario);
             let user_met = table::borrow(lending::get_users(&state), user);
@@ -924,7 +912,6 @@ module quest_overmind::lending_tests {
         test_scenario::next_tx(scenario, user);
 
         let expected_users = 1;
-        let expected_pools = 1;
         {
             let state = test_scenario::take_shared<ProtocolState>(scenario);
             let user_met = table::borrow(lending::get_users(&state), user);
@@ -1025,7 +1012,6 @@ module quest_overmind::lending_tests {
         test_scenario::next_tx(scenario, user);
 
         let expected_users = 1;
-        let expected_pools = 1;
         {
             let state = test_scenario::take_shared<ProtocolState>(scenario);
             let user_met = table::borrow(lending::get_users(&state), user);
