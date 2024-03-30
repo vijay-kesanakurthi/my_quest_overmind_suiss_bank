@@ -104,11 +104,16 @@ module quest_overmind::lending {
     //==============================================================================================
     // Constants - Add your constants here (if any)
     //==============================================================================================
-
+     const LIQUIDATION_THRESHOLD: u64 = 80;
     //==============================================================================================
     // Error codes - DO NOT MODIFY
     //==============================================================================================
-    
+    const ERR_INSUFFICIENT_COLLATERAL: u64 = 1;
+    const ERR_INSUFFICIENT_BORROWED_AMOUNT: u64 = 2;
+    const ERR_BORROWED_AMOUNT_ZERO: u64 = 3;
+    const ERR_USER_NOTFOUND: u64 = 4;
+
+
     //==============================================================================================
     // Module Structs - DO NOT MODIFY
     //==============================================================================================
@@ -259,61 +264,42 @@ module quest_overmind::lending {
 
         let sender = tx_context::sender(ctx);
 
-        let real_amount_to_withdraw = 0;
+        assert!(table::contains(&state.users, sender), ERR_USER_NOTFOUND); 
 
-        if (table::contains(&state.users, sender)) {
+        let userData = table::borrow_mut(&mut state.users, sender);
 
-            let userData = table::borrow_mut(&mut state.users, sender);
-
-            if (table::contains(&userData.collateral_amount, pool.asset_number)) {
-                let amount = table::borrow_mut(&mut userData.collateral_amount, pool.asset_number);
-
-                assert!(*amount >= amount_to_withdraw, 1);
-
-                *amount = *amount - amount_to_withdraw;
-
-                real_amount_to_withdraw = amount_to_withdraw;
-            }
-        };
-
-        let amount_to_withdraw_balance = balance::split(
-            &mut pool.reserve, real_amount_to_withdraw);
-
+        assert!(table::contains(&userData.collateral_amount, pool.asset_number), ERR_INSUFFICIENT_COLLATERAL); 
+        let amount = table::borrow_mut(&mut userData.collateral_amount, pool.asset_number);
+        assert!(*amount >= amount_to_withdraw, ERR_INSUFFICIENT_COLLATERAL);
+        *amount = *amount - amount_to_withdraw;
+        let amount_to_withdraw_balance = balance::split(&mut pool.reserve, amount_to_withdraw);
         coin::from_balance(amount_to_withdraw_balance, ctx)
+
+    
     }
 
     /*
         Borrows a coin from a pool. This function increases the user's borrowed amount in the pool
         and removes and returns the coin from the pool's reserve.
     */
+
     public fun borrow<CoinType>(
         amount_to_borrow: u64, 
         pool: &mut Pool<CoinType>,
         state: &mut ProtocolState,
         ctx: &mut TxContext
     ): Coin<CoinType> {
-
-         let sender = tx_context::sender(ctx);
-
-         let real_amount_to_borrow = 0;
-
-         if (table::contains(&state.users, sender)) {
-            let userData = table::borrow_mut(&mut state.users, sender);
-
-            if (table::contains(&userData.borrowed_amount, pool.asset_number)) {
-                let amount = table::borrow_mut(&mut userData.borrowed_amount, pool.asset_number);
-                *amount = *amount + amount_to_borrow
-            } else {
-                table::add(&mut userData.borrowed_amount, pool.asset_number, amount_to_borrow);
-            };
-
-            real_amount_to_borrow = amount_to_borrow;
-         };
-
-         let amount_to_borrow_balance = balance::split(
-            &mut pool.reserve, real_amount_to_borrow);
-
-         coin::from_balance(amount_to_borrow_balance, ctx)
+        let sender = tx_context::sender(ctx);
+        assert!(table::contains(&state.users, sender), ERR_USER_NOTFOUND); 
+        let userData = table::borrow_mut(&mut state.users, sender);
+        if (table::contains(&userData.borrowed_amount, pool.asset_number)) {
+            let amount = table::borrow_mut(&mut userData.borrowed_amount, pool.asset_number);
+            *amount = *amount + amount_to_borrow
+        } else {
+            table::add(&mut userData.borrowed_amount, pool.asset_number, amount_to_borrow);
+        };
+        let amount_to_borrow_balance = balance::split( &mut pool.reserve, amount_to_borrow);
+        coin::from_balance(amount_to_borrow_balance, ctx)
     }
 
     /*
@@ -326,23 +312,19 @@ module quest_overmind::lending {
         state: &mut ProtocolState,
         ctx: &mut TxContext
     ) {
-
         let sender = tx_context::sender(ctx);
         let coin_to_repay_balance = coin::into_balance(coin_to_repay);
         let value = balance::value(&coin_to_repay_balance);
+
+        assert!(table::contains(&state.users, sender), ERR_USER_NOTFOUND);
+        let userData = table::borrow_mut(&mut state.users, sender);
+
+        assert!(table::contains(&userData.borrowed_amount, pool.asset_number), ERR_BORROWED_AMOUNT_ZERO);
+        let amount = table::borrow_mut(&mut userData.borrowed_amount, pool.asset_number);
+        assert!(*amount >= value, ERR_INSUFFICIENT_BORROWED_AMOUNT);
+        *amount = *amount - value;    
         balance::join(&mut pool.reserve, coin_to_repay_balance);
-
-        if (table::contains(&state.users, sender)) {
-            let userData = table::borrow_mut(&mut state.users, sender);
-
-            if (table::contains(&userData.borrowed_amount, pool.asset_number)) {
-                let amount = table::borrow_mut(
-                    &mut userData.borrowed_amount, pool.asset_number);
-
-                assert!(*amount >= value, 2);
-                *amount = *amount - value;
-            }
-        };
+        
     }
 
     /*  
@@ -358,35 +340,26 @@ module quest_overmind::lending {
         state: &ProtocolState,
         price_feed: &dummy_oracle::PriceFeed
     ): u64 {
+        assert!(table::contains(&state.users, user), ERR_USER_NOTFOUND); 
+
         let collateral_total_amount = 0;
         let borrowed_total_amount = 0;
-
-        if (table::contains(&state.users, user)) {
-
-            let userData = table::borrow(&state.users, user);
-
-            let i = 0;
-            while(i < state.number_of_pools) {
-
-                let (price, decimals) = dummy_oracle::get_price_and_decimals(i, price_feed);
-
-                if (table::contains(&userData.collateral_amount, i)) {
-                    let amount = table::borrow(&userData.collateral_amount, i);
-                    collateral_total_amount = collateral_total_amount + *amount / math::pow(10, decimals) * price ;
-                };
-
-                if (table::contains(&userData.borrowed_amount, i)) {
-                    let amount = table::borrow(&userData.borrowed_amount, i);
-                    borrowed_total_amount = borrowed_total_amount + *amount / math::pow(10, decimals) * price;
-                };
-
-                i = i+1;
-            }
+        let userData = table::borrow(&state.users, user);
+        let i = 0;
+        while(i < state.number_of_pools) {
+            let (price, decimals) = dummy_oracle::get_price_and_decimals(i, price_feed);
+            if (table::contains(&userData.collateral_amount, i)) {
+                let amount = table::borrow(&userData.collateral_amount, i);
+                collateral_total_amount = collateral_total_amount + *amount / math::pow(10, decimals) * price ;
+            };
+            if (table::contains(&userData.borrowed_amount, i)) {
+                let amount = table::borrow(&userData.borrowed_amount, i);
+                borrowed_total_amount = borrowed_total_amount + *amount / math::pow(10, decimals) * price;
+            };
+            i = i+1;
         };
-
-        assert!(borrowed_total_amount != 0, 3);
-
-        collateral_total_amount * 80 / borrowed_total_amount
+        assert!(borrowed_total_amount != 0, ERR_BORROWED_AMOUNT_ZERO);
+        collateral_total_amount * LIQUIDATION_THRESHOLD / borrowed_total_amount
     }
 
     public fun get_number_of_pools(state: &ProtocolState): u64 {
